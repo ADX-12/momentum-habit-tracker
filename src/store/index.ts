@@ -2,10 +2,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Goal, Habit, HabitLog, Task, Notification, Milestone, DailyReview, WeeklyReview } from '@/types';
-import {
-  DEMO_GOALS, DEMO_HABITS, DEMO_HABIT_LOGS, DEMO_TASKS,
-  DEMO_NOTIFICATIONS, DEMO_MILESTONES, DEMO_REVIEWS, DEMO_USER
-} from '@/lib/seed';
+
+export const DEFAULT_USER = {
+  id: 'user-001',
+  full_name: 'User',
+  timezone: 'Asia/Kolkata',
+  theme: 'dark' as const,
+  created_at: new Date().toISOString(),
+};
 
 interface AppState {
   // Theme
@@ -13,7 +17,8 @@ interface AppState {
   setTheme: (t: 'dark' | 'light' | 'system') => void;
 
   // User
-  user: typeof DEMO_USER;
+  user: typeof DEFAULT_USER;
+  setUser: (u: Partial<typeof DEFAULT_USER>) => void;
 
   // Goals
   goals: Goal[];
@@ -54,7 +59,12 @@ interface AppState {
   dailyReviews: DailyReview[];
   weeklyReviews: WeeklyReview[];
   addDailyReview: (r: Omit<DailyReview, 'id' | 'user_id' | 'created_at'>) => void;
+  deleteDailyReview: (id: string) => void;
   addWeeklyReview: (r: Omit<WeeklyReview, 'id' | 'user_id' | 'created_at'>) => void;
+  deleteWeeklyReview: (id: string) => void;
+
+  // Reset / Clear
+  resetToCleanState: () => void;
 
   // Search
   searchQuery: string;
@@ -76,18 +86,24 @@ export const useAppStore = create<AppState>()(
       theme: 'dark',
       setTheme: (t) => set({ theme: t }),
 
-      user: DEMO_USER,
+      user: DEFAULT_USER,
+      setUser: (u) => set((s) => ({ user: { ...s.user, ...u } })),
 
-      goals: DEMO_GOALS,
+      goals: [],
       addGoal: (g) => set((s) => ({
         goals: [...s.goals, { ...g, id: genId(), user_id: s.user.id, created_at: now(), updated_at: now() }],
       })),
       updateGoal: (id, g) => set((s) => ({
         goals: s.goals.map(goal => goal.id === id ? { ...goal, ...g, updated_at: now() } : goal),
       })),
-      deleteGoal: (id) => set((s) => ({ goals: s.goals.filter(g => g.id !== id) })),
+      deleteGoal: (id) => set((s) => ({
+        goals: s.goals.filter(g => g.id !== id),
+        milestones: s.milestones.filter(m => m.goal_id !== id),
+        habits: s.habits.filter(h => h.goal_id !== id),
+        tasks: s.tasks.filter(t => t.goal_id !== id),
+      })),
 
-      milestones: DEMO_MILESTONES,
+      milestones: [],
       addMilestone: (m) => set((s) => ({
         milestones: [...s.milestones, { ...m, id: genId(), user_id: s.user.id, created_at: now(), updated_at: now() }],
       })),
@@ -96,16 +112,19 @@ export const useAppStore = create<AppState>()(
       })),
       deleteMilestone: (id) => set((s) => ({ milestones: s.milestones.filter(m => m.id !== id) })),
 
-      habits: DEMO_HABITS,
+      habits: [],
       addHabit: (h) => set((s) => ({
         habits: [...s.habits, { ...h, id: genId(), user_id: s.user.id, created_at: now(), updated_at: now() }],
       })),
       updateHabit: (id, h) => set((s) => ({
         habits: s.habits.map(habit => habit.id === id ? { ...habit, ...h, updated_at: now() } : habit),
       })),
-      deleteHabit: (id) => set((s) => ({ habits: s.habits.filter(h => h.id !== id) })),
+      deleteHabit: (id) => set((s) => ({
+        habits: s.habits.filter(h => h.id !== id),
+        habitLogs: s.habitLogs.filter(l => l.habit_id !== id),
+      })),
 
-      habitLogs: DEMO_HABIT_LOGS,
+      habitLogs: [],
       logHabit: (habitId, date, status) => set((s) => {
         const existing = s.habitLogs.find(l => l.habit_id === habitId && l.log_date === date);
         if (existing) {
@@ -128,7 +147,7 @@ export const useAppStore = create<AppState>()(
         };
       }),
 
-      tasks: DEMO_TASKS,
+      tasks: [],
       addTask: (t) => set((s) => ({
         tasks: [...s.tasks, { ...t, id: genId(), user_id: s.user.id, created_at: now(), updated_at: now() }],
       })),
@@ -140,7 +159,7 @@ export const useAppStore = create<AppState>()(
         tasks: s.tasks.map(t => t.id === id ? { ...t, status: 'completed', completed_at: now(), updated_at: now() } : t),
       })),
 
-      notifications: DEMO_NOTIFICATIONS,
+      notifications: [],
       markNotificationRead: (id) => set((s) => ({
         notifications: s.notifications.map(n => n.id === id ? { ...n, is_read: true } : n),
       })),
@@ -151,18 +170,41 @@ export const useAppStore = create<AppState>()(
         notifications: s.notifications.filter(n => n.id !== id),
       })),
 
-      dailyReviews: DEMO_REVIEWS.daily,
-      weeklyReviews: DEMO_REVIEWS.weekly,
+      dailyReviews: [],
+      weeklyReviews: [],
       addDailyReview: (r) => set((s) => ({
         dailyReviews: [...s.dailyReviews.filter(d => d.review_date !== r.review_date), {
           ...r, id: genId(), user_id: s.user.id, created_at: now(),
         }],
+      })),
+      deleteDailyReview: (id) => set((s) => ({
+        dailyReviews: s.dailyReviews.filter(d => d.id !== id),
       })),
       addWeeklyReview: (r) => set((s) => ({
         weeklyReviews: [...s.weeklyReviews.filter(w => w.week_start !== r.week_start), {
           ...r, id: genId(), user_id: s.user.id, created_at: now(),
         }],
       })),
+      deleteWeeklyReview: (id) => set((s) => ({
+        weeklyReviews: s.weeklyReviews.filter(w => w.id !== id),
+      })),
+
+      resetToCleanState: () => {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('momentum-store');
+          localStorage.removeItem('momentum-store-v2');
+        }
+        set({
+          goals: [],
+          milestones: [],
+          habits: [],
+          habitLogs: [],
+          tasks: [],
+          notifications: [],
+          dailyReviews: [],
+          weeklyReviews: [],
+        });
+      },
 
       searchQuery: '',
       setSearchQuery: (q) => set({ searchQuery: q }),
@@ -173,7 +215,13 @@ export const useAppStore = create<AppState>()(
       toggleSidebar: () => set((s) => ({ isSidebarCollapsed: !s.isSidebarCollapsed })),
     }),
     {
-      name: 'momentum-store',
+      name: 'momentum-store-v2',
+      onRehydrateStorage: () => () => {
+        if (typeof window !== 'undefined') {
+          // If the legacy store exists, clean it up so old dummy data is completely purged
+          localStorage.removeItem('momentum-store');
+        }
+      },
       partialize: (state) => ({
         theme: state.theme,
         goals: state.goals,

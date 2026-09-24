@@ -1,7 +1,8 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { useAppStore } from '@/store';
-import { calculateStreak, getGreeting } from '@/lib/date';
+import { calculateStreak } from '@/lib/date';
+import { Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 type ReviewTab = 'daily' | 'weekly' | 'monthly';
@@ -10,7 +11,11 @@ const MOOD_EMOJIS = ['😞', '😕', '😐', '🙂', '😄'];
 
 export default function ReviewsPage() {
   const [activeTab, setActiveTab] = useState<ReviewTab>('daily');
-  const { habits, habitLogs, tasks, dailyReviews, weeklyReviews, addDailyReview, addWeeklyReview, goals, milestones } = useAppStore();
+  const {
+    habits, habitLogs, tasks, dailyReviews, weeklyReviews,
+    addDailyReview, deleteDailyReview, addWeeklyReview, deleteWeeklyReview,
+    goals, milestones,
+  } = useAppStore();
 
   const today = new Date().toISOString().split('T')[0];
   const todayReview = dailyReviews.find(r => r.review_date === today);
@@ -27,9 +32,6 @@ export default function ReviewsPage() {
   const missedHabits = todayLogs.filter(l => l.status === 'missed').length;
   const todayTasks = tasks.filter(t => t.due_date === today);
   const completedTasks = tasks.filter(t => t.status === 'completed' && t.due_date === today).length;
-
-  // Latest weekly review
-  const latestWeekly = weeklyReviews.sort((a, b) => b.week_start.localeCompare(a.week_start))[0];
 
   // Weekly stats (last 7 days)
   const weeklyStats = useMemo(() => {
@@ -81,6 +83,13 @@ export default function ReviewsPage() {
     toast.success('Daily review saved! 🎉');
   };
 
+  const handleDeleteDaily = (id: string) => {
+    if (window.confirm('Delete this daily review?')) {
+      deleteDailyReview(id);
+      toast.success('Daily review deleted');
+    }
+  };
+
   const handleSubmitWeekly = () => {
     const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
     addWeeklyReview({
@@ -93,6 +102,13 @@ export default function ReviewsPage() {
       missed_habits: weeklyStats.missed,
     });
     toast.success('Weekly review saved!');
+  };
+
+  const handleDeleteWeekly = (id: string) => {
+    if (window.confirm('Delete this weekly review?')) {
+      deleteWeeklyReview(id);
+      toast.success('Weekly review deleted');
+    }
   };
 
   return (
@@ -137,7 +153,16 @@ export default function ReviewsPage() {
 
             {todayReview ? (
               <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--emerald)', marginBottom: 8 }}>✓ Today's review submitted</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--emerald)' }}>✓ Today's review submitted</div>
+                  <button
+                    onClick={() => handleDeleteDaily(todayReview.id)}
+                    className="btn btn-ghost btn-sm"
+                    style={{ color: 'var(--rose)', padding: '4px 8px', fontSize: 11, gap: 4 }}
+                  >
+                    <Trash2 size={13} /> Delete Review
+                  </button>
+                </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Mood: {MOOD_EMOJIS[(todayReview.mood || 3) - 1]}</div>
                 {todayReview.reflection && <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontStyle: 'italic' }}>"{todayReview.reflection}"</div>}
               </div>
@@ -189,7 +214,16 @@ export default function ReviewsPage() {
 
           {todayReview && (
             <div className="glass" style={{ padding: 24 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Tomorrow's Focus</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700 }}>Tomorrow's Focus</h3>
+                <button
+                  onClick={() => handleDeleteDaily(todayReview.id)}
+                  className="btn btn-danger btn-sm"
+                  style={{ fontSize: 11, gap: 4 }}
+                >
+                  <Trash2 size={12} /> Delete Review
+                </button>
+              </div>
               {todayReview.tomorrow_focus ? (
                 <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7 }}>{todayReview.tomorrow_focus}</div>
               ) : (
@@ -203,8 +237,8 @@ export default function ReviewsPage() {
             <div className="glass" style={{ padding: 24, gridColumn: '1 / -1' }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Past Reviews</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[...dailyReviews].sort((a, b) => b.review_date.localeCompare(a.review_date)).slice(0, 7).map(review => (
-                  <div key={review.id} style={{ display: 'flex', gap: 14, padding: '12px 14px', background: 'var(--bg-tertiary)', borderRadius: 8 }}>
+                {[...dailyReviews].sort((a, b) => b.review_date.localeCompare(a.review_date)).slice(0, 14).map(review => (
+                  <div key={review.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 14px', background: 'var(--bg-tertiary)', borderRadius: 8 }}>
                     <div style={{ fontSize: 24 }}>{MOOD_EMOJIS[(review.mood || 3) - 1]}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -217,6 +251,16 @@ export default function ReviewsPage() {
                       </div>
                       {review.reflection && <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>"{review.reflection}"</div>}
                     </div>
+                    <button
+                      onClick={() => handleDeleteDaily(review.id)}
+                      className="btn btn-ghost btn-sm"
+                      title="Delete this review"
+                      style={{ color: 'var(--text-muted)', padding: '6px' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--rose)')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -267,8 +311,20 @@ export default function ReviewsPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {[...weeklyReviews].sort((a, b) => b.week_start.localeCompare(a.week_start)).map(review => (
                   <div key={review.id} style={{ padding: '14px 16px', background: 'var(--bg-tertiary)', borderRadius: 8 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
-                      Week of {new Date(review.week_start).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Week of {new Date(review.week_start).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      </div>
+                      <button
+                        onClick={() => handleDeleteWeekly(review.id)}
+                        className="btn btn-ghost btn-sm"
+                        title="Delete this weekly review"
+                        style={{ color: 'var(--text-muted)', padding: '4px' }}
+                        onMouseEnter={e => (e.currentTarget.style.color = 'var(--rose)')}
+                        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Habits: <strong style={{ color: 'var(--emerald)' }}>{review.habit_completion_pct}%</strong></div>

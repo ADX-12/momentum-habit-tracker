@@ -8,7 +8,7 @@ type SettingsTab = 'profile' | 'appearance' | 'notifications' | 'data';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
-  const { theme, setTheme, goals, habits, tasks, habitLogs } = useAppStore();
+  const { theme, setTheme, goals, habits, tasks, habitLogs, resetToCleanState } = useAppStore();
   const [name, setName] = useState('Apurva');
   const [timezone, setTimezone] = useState('Asia/Kolkata');
 
@@ -205,14 +205,15 @@ export default function SettingsPage() {
                 </p>
                 <button
                   onClick={() => {
-                    if (window.confirm('Clear all local data? This cannot be undone.')) {
-                      localStorage.clear();
-                      window.location.reload();
+                    if (window.confirm('Clear all data and start completely fresh? This cannot be undone.')) {
+                      resetToCleanState();
+                      toast.success('All data wiped clean. Fresh start ready!');
+                      setTimeout(() => window.location.reload(), 500);
                     }
                   }}
                   className="btn btn-danger"
                 >
-                  Clear All Data
+                  Clear All Data & Reset
                 </button>
               </div>
             </div>

@@ -1,10 +1,7 @@
 import HabitDetailView from './HabitDetailView';
-import { DEMO_HABITS } from '@/lib/seed';
 
 export function generateStaticParams() {
-  return DEMO_HABITS.map((habit) => ({
-    id: habit.id,
-  }));
+  return [{ id: 'habit-1' }];
 }
 
 export default async function HabitDetailPage({ params }: { params: Promise<{ id: string }> }) {

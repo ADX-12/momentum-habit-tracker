@@ -1,10 +1,7 @@
 import GoalDetailView from './GoalDetailView';
-import { DEMO_GOALS } from '@/lib/seed';
 
 export function generateStaticParams() {
-  return DEMO_GOALS.map((goal) => ({
-    id: goal.id,
-  }));
+  return [{ id: 'goal-1' }];
 }
 
 export default async function GoalDetailPage({ params }: { params: Promise<{ id: string }> }) {
